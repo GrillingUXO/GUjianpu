@@ -1,0 +1,4 @@
+music21==9.1.0
+python-dotenv==1.0.0
+musicpy==0.2.0
+tk
