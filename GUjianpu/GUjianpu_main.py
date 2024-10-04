@@ -7,9 +7,8 @@ import zipfile
 import tempfile
 import shutil
 from dotenv import load_dotenv
-import musicpy as mp  # 导入 musicpy 用于处理 MIDI 文件
+import musicpy as mp  
 
-# Load environment variables from .env file if present
 load_dotenv()
 
 # Mapping from standard musical notes to Jianpu numbers
@@ -20,11 +19,10 @@ JIANPU_PITCH_MAP = {
 
 # Accidentals mapping
 ACCIDENTALS = {
-    1: '♯',  # Sharp
-    -1: '♭', # Flat
+    1: '♯',  
+    -1: '♭', 
 }
 
-# Function to open file dialog for user to choose MIDI file
 def open_file_dialog():
     root = tk.Tk()
     root.withdraw()
@@ -41,10 +39,8 @@ def open_file_dialog():
 def extract_melody_with_musicpy(midi_file):
     piece, bpm, start_time = mp.read(midi_file).merge()
 
-    # 提取主旋律
     melody_chord = piece.split_melody(mode='chord')
 
-    # 保存主旋律到临时文件
     temp_midi_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mid')
     mp.write(melody_chord, bpm, name=temp_midi_file.name)
     return temp_midi_file.name
@@ -87,7 +83,7 @@ def select_parts(score):
 def convert_note_to_jianpu(m21_note):
     """Convert a music21 note or rest to Jianpu notation, handling duration, octave markers, and dotted notes."""
 
-    # Handle rests (休止符)
+    # Rests
     if isinstance(m21_note, note.Rest):
         quarter_length = m21_note.duration.quarterLength
         dots = m21_note.duration.dots
@@ -118,14 +114,14 @@ def convert_note_to_jianpu(m21_note):
 
         return rest_notation
 
-    # Handle notes (音符)
+    # Notes
     step = m21_note.pitch.step
     octave = m21_note.pitch.octave
     alter = m21_note.pitch.accidental.alter if m21_note.pitch.accidental else 0
     quarter_length = m21_note.duration.quarterLength  # Use quarterLength for precision
     dots = m21_note.duration.dots  # Get the number of dots
 
-    # Handle accidentals (升降号处理)
+    # Accidentals
     if alter == 1:
         step += '♯'
     elif alter == -1:
@@ -135,11 +131,11 @@ def convert_note_to_jianpu(m21_note):
     base_step = step[0]  # 'C' from 'C♯' or 'C♭'
     jianpu_number = JIANPU_PITCH_MAP.get(base_step, '')
 
-    # Add accidental (添加升降号)
+    # Add accidentals
     if len(step) > 1:
         jianpu_number = ACCIDENTALS.get(alter, '') + jianpu_number
 
-    # Add octave marking (dots) for high and low octaves (添加高低音标记)
+    # Dotted note
     if octave < 4:
         jianpu_number = jianpu_number + '̣' * (4 - octave)  # Low octave dots
     elif octave > 4:
@@ -161,7 +157,6 @@ def convert_note_to_jianpu(m21_note):
     elif quarter_length == 1.0:  # Quarter note
         jianpu_number += ''
 
-    # Handle dotted notes (附点音符处理)
     if dots == 1:  # Single dotted note
         jianpu_number += '·'
     elif dots == 2:  # Double dotted note
@@ -191,8 +186,8 @@ def get_chord_root_or_bass(chrd):
 # Function to convert a chord to Jianpu notation by extracting its root or bass note
 def convert_chord_to_jianpu(m21_chord):
     """Convert a music21 chord to Jianpu notation by taking its root or bass note."""
-    root_note = get_chord_root_or_bass(m21_chord)  # 获取和弦的根音或低音
-    return convert_note_to_jianpu(root_note)  # 使用现有的音符转换函数处理根音
+    root_note = get_chord_root_or_bass(m21_chord)  
+    return convert_note_to_jianpu(root_note)  
 
 # Function to process and convert the selected parts to Jianpu notation
 def process_selected_parts(score, selected_parts, output_txt_file):
@@ -211,7 +206,7 @@ def process_selected_parts(score, selected_parts, output_txt_file):
                 measure_jianpu = []  # Store the Jianpu for the current line
 
                 for i, measure in enumerate(measures, start=1):
-                    measure_content = []  # 用于存储当前小节的简谱符号
+                    measure_content = []
                     notes = measure.notes
 
                     for element in notes:
@@ -227,11 +222,9 @@ def process_selected_parts(score, selected_parts, output_txt_file):
                     # Combine the Jianpu of this measure, separating notes with spaces
                     measure_str = ' '.join(measure_content)
                     measure_jianpu.append(f"|  {measure_str}  |")
-
-                    # Every 4 measures, write a line of Jianpu, separating each measure with four spaces
-                    if i % 4 == 0:
+                    if i % 3 == 0:
                         jianpu_file.write('    '.join(measure_jianpu) + '\n\n\n')
-                        measure_jianpu = []  # Reset for the next set of 4 measures
+                        measure_jianpu = []  # Reset for the next set of 3 measures
 
                 # Write any remaining measures with four spaces between measures
                 if measure_jianpu:
@@ -250,26 +243,24 @@ def main():
         messagebox.showinfo("提示", "未选择任何文件。")
         return
 
-    # 提取主旋律并保存为临时 MIDI 文件
+    # Save into midi
     try:
         temp_midi = extract_melody_with_musicpy(input_midi)
     except Exception as e:
         messagebox.showerror("错误", f"无法提取主旋律: {e}")
         return
 
-    # 使用 music21 解析提取出的主旋律
+    # Split Theme melody
     try:
         score = converter.parse(temp_midi)
     except Exception as e:
         messagebox.showerror("错误", f"无法解析临时 MIDI 文件: {e}")
         return
 
-    # Select parts to convert
     selected_parts, selected_part_ids = select_parts(score)
     if not selected_parts:
         return
 
-    # Prompt user to select an output directory
     output_txt_file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
 
     if output_txt_file:
