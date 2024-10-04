@@ -3,11 +3,10 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from music21 import converter, chord, note, stream
-import zipfile
 import tempfile
 import shutil
 from dotenv import load_dotenv
-import musicpy as mp  
+import musicpy as mp
 
 load_dotenv()
 
@@ -19,8 +18,8 @@ JIANPU_PITCH_MAP = {
 
 # Accidentals mapping
 ACCIDENTALS = {
-    1: '♯',  
-    -1: '♭', 
+    1: '♯',
+    -1: '♭',
 }
 
 def open_file_dialog():
@@ -35,15 +34,15 @@ def open_file_dialog():
     )
     return file_path
 
-# Function to extract melody using musicpy and save it as a temporary MIDI file
 def extract_melody_with_musicpy(midi_file):
     piece, bpm, start_time = mp.read(midi_file).merge()
 
+    # Split the theme
     melody_chord = piece.split_melody(mode='chord')
 
     temp_midi_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mid')
     mp.write(melody_chord, bpm, name=temp_midi_file.name)
-    return temp_midi_file.name
+    return temp_midi_file.name, melody_chord, bpm
 
 # Function to prompt user to select parts to convert
 def select_parts(score):
@@ -83,25 +82,25 @@ def select_parts(score):
 def convert_note_to_jianpu(m21_note):
     """Convert a music21 note or rest to Jianpu notation, handling duration, octave markers, and dotted notes."""
 
-    # Rests
+    # Rest
     if isinstance(m21_note, note.Rest):
         quarter_length = m21_note.duration.quarterLength
         dots = m21_note.duration.dots
 
         # Mapping rest duration based on quarterLength
-        if quarter_length == 4.0:  # Whole note rest
+        if quarter_length == 4.0:
             rest_notation = '0000'
-        elif quarter_length == 2.0:  # Half note rest
+        elif quarter_length == 2.0:
             rest_notation = '00'
-        elif quarter_length == 1.0:  # Quarter note rest
+        elif quarter_length == 1.0:
             rest_notation = '0'
-        elif quarter_length == 0.5:  # Eighth note rest
+        elif quarter_length == 0.5:
             rest_notation = '0̱'
-        elif quarter_length == 0.25:  # Sixteenth note rest
+        elif quarter_length == 0.25:
             rest_notation = '0̳'
-        elif quarter_length == 0.125:  # Thirty-second note rest
+        elif quarter_length == 0.125:
             rest_notation = '0̹'
-        elif quarter_length == 0.0625:  # Sixty-fourth note rest
+        elif quarter_length == 0.0625:
             rest_notation = '0̺'
         else:
             rest_notation = '0'  # Fallback for any undefined rests
@@ -114,12 +113,12 @@ def convert_note_to_jianpu(m21_note):
 
         return rest_notation
 
-    # Notes
+    # Handle notes (音符)
     step = m21_note.pitch.step
     octave = m21_note.pitch.octave
     alter = m21_note.pitch.accidental.alter if m21_note.pitch.accidental else 0
     quarter_length = m21_note.duration.quarterLength  # Use quarterLength for precision
-    dots = m21_note.duration.dots  # Get the number of dots
+    dots = m21_note.duration.dots
 
     # Accidentals
     if alter == 1:
@@ -128,38 +127,39 @@ def convert_note_to_jianpu(m21_note):
         step += '♭'
 
     # Convert step to Jianpu number
-    base_step = step[0]  # 'C' from 'C♯' or 'C♭'
+    base_step = step[0]
     jianpu_number = JIANPU_PITCH_MAP.get(base_step, '')
 
-    # Add accidentals
+    # Add accidental
     if len(step) > 1:
         jianpu_number = ACCIDENTALS.get(alter, '') + jianpu_number
 
-    # Dotted note
+    # Add octave marking
     if octave < 4:
-        jianpu_number = jianpu_number + '̣' * (4 - octave)  # Low octave dots
+        jianpu_number = jianpu_number + '̣' * (4 - octave)
     elif octave > 4:
-        jianpu_number = jianpu_number + '̇' * (octave - 4)  # High octave dots
+        jianpu_number = jianpu_number + '̇' * (octave - 4)
 
-    # Adjust duration based on quarter length (instead of just type)
-    if quarter_length == 0.5:  # Eighth note
+    # Adjust duration based on quarter length
+    if quarter_length == 0.5:
         jianpu_number += '̱'
-    elif quarter_length == 0.25:  # Sixteenth note
+    elif quarter_length == 0.25:
         jianpu_number += '̳'
-    elif quarter_length == 0.125:  # Thirty-second note
+    elif quarter_length == 0.125:
         jianpu_number += '̹'
-    elif quarter_length == 0.0625:  # Sixty-fourth note
+    elif quarter_length == 0.0625:
         jianpu_number += '̺'
-    elif quarter_length == 4.0:  # Whole note
+    elif quarter_length == 4.0:
         jianpu_number += "  -  -  -"
-    elif quarter_length == 2.0:  # Half note
+    elif quarter_length == 2.0:
         jianpu_number += "  -"
-    elif quarter_length == 1.0:  # Quarter note
+    elif quarter_length == 1.0:
         jianpu_number += ''
 
-    if dots == 1:  # Single dotted note
+    # Dotted notes
+    if dots == 1:  
         jianpu_number += '·'
-    elif dots == 2:  # Double dotted note
+    elif dots == 2:  
         jianpu_number += '··'
 
     return jianpu_number
@@ -187,7 +187,7 @@ def get_chord_root_or_bass(chrd):
 def convert_chord_to_jianpu(m21_chord):
     """Convert a music21 chord to Jianpu notation by taking its root or bass note."""
     root_note = get_chord_root_or_bass(m21_chord)  
-    return convert_note_to_jianpu(root_note)  
+    return convert_note_to_jianpu(root_note)
 
 # Function to process and convert the selected parts to Jianpu notation
 def process_selected_parts(score, selected_parts, output_txt_file):
@@ -206,7 +206,7 @@ def process_selected_parts(score, selected_parts, output_txt_file):
                 measure_jianpu = []  # Store the Jianpu for the current line
 
                 for i, measure in enumerate(measures, start=1):
-                    measure_content = []
+                    measure_content = []  
                     notes = measure.notes
 
                     for element in notes:
@@ -222,9 +222,11 @@ def process_selected_parts(score, selected_parts, output_txt_file):
                     # Combine the Jianpu of this measure, separating notes with spaces
                     measure_str = ' '.join(measure_content)
                     measure_jianpu.append(f"|  {measure_str}  |")
-                    if i % 3 == 0:
+
+                    # Every 4 measures, write a line of Jianpu, separating each measure with four spaces
+                    if i % 4 == 0:
                         jianpu_file.write('    '.join(measure_jianpu) + '\n\n\n')
-                        measure_jianpu = []  # Reset for the next set of 3 measures
+                        measure_jianpu = []  # Reset for the next set of 4 measures
 
                 # Write any remaining measures with four spaces between measures
                 if measure_jianpu:
@@ -243,20 +245,30 @@ def main():
         messagebox.showinfo("提示", "未选择任何文件。")
         return
 
-    # Save into midi
     try:
-        temp_midi = extract_melody_with_musicpy(input_midi)
+        temp_midi, melody_chord, bpm = extract_melody_with_musicpy(input_midi)
     except Exception as e:
         messagebox.showerror("错误", f"无法提取主旋律: {e}")
         return
 
-    # Split Theme melody
+    save_melody_midi = filedialog.asksaveasfilename(defaultextension=".mid", filetypes=[("MIDI files", "*.mid")])
+    if save_melody_midi:
+        try:
+            # Save as .midi file
+            mp.write(melody_chord, bpm, name=save_melody_midi)
+            messagebox.showinfo("成功", f"主旋律 MIDI 已保存为 {save_melody_midi}")
+        except Exception as e:
+            messagebox.showerror("错误", f"保存主旋律 MIDI 文件时出错: {e}")
+            return
+
+    # Extract the .midi using music21
     try:
         score = converter.parse(temp_midi)
     except Exception as e:
         messagebox.showerror("错误", f"无法解析临时 MIDI 文件: {e}")
         return
 
+    # Select parts to convert
     selected_parts, selected_part_ids = select_parts(score)
     if not selected_parts:
         return
@@ -264,11 +276,9 @@ def main():
     output_txt_file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
 
     if output_txt_file:
-        # Process selected parts and convert to Jianpu notation
         process_selected_parts(score, selected_parts, output_txt_file)
     else:
         messagebox.showinfo("提示", "未选择任何保存路径。")
 
-# Run the main function
 if __name__ == "__main__":
     main()
