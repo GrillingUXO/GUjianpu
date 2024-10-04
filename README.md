@@ -12,7 +12,7 @@
 3：选择下载地址和命名。
 <img width="319" alt="Screen Shot 2024-10-04 at 1 52 04 PM" src="https://github.com/user-attachments/assets/cc72a67e-13d7-410a-96f4-666260119f69">
 
-4：简谱文件会以文本格式导出。注意，简谱的时值有时会存在错误（比较经典的是附点八分识别成四分），且休止符无法正常打印。疑似为music21库的 quarterLength 存在浮点误差。
+4：简谱文件会以文本格式导出。注意，简谱的时值有时会存在错误（比较经典的是附点八分识别成四分），且休止符无法正常打印。👉👈
 <img width="1280" alt="Screen Shot 2024-10-04 at 1 53 14 PM" src="https://github.com/user-attachments/assets/4020148b-28d0-4547-b658-09495176a517">
 
 
