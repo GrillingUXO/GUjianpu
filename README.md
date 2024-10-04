@@ -1,7 +1,7 @@
 
 基于music21库和musicpy库的五线谱-简谱转换脚本。这个粗糙的小工具可以将多声部乐谱转换成单声部的乐谱，同时较完整地保留主旋律。
 
-十分感谢 @Rainbow-Dreamer 的 https://github.com/Rainbow-Dreamer/musicpy/blob/master/README_cn.md 工具包
+十分感谢 @Rainbow-Dreamer 的musicpy工具包 😍
 
 1：下载 .midi，如果文件是 .musicxml 格式的可以在MuseScore里转换。
 <img width="1280" alt="Screen Shot 2024-10-04 at 1 49 11 PM" src="https://github.com/user-attachments/assets/396f108c-b131-426d-bcb3-3c4bf6aa7527">
