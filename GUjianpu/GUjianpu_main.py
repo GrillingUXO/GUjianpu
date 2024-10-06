@@ -41,7 +41,7 @@ def tolerance_selection():
     root.title("选择容许阈值")
 
     tk.Label(root, text="旋律归类容许阈值 (melody tolerance)").pack(padx=10, pady=5)
-    melody_slider = tk.Scale(root, from_=1, to=12, orient='horizontal', label="小七度 = 10 (默认)")
+    melody_slider = tk.Scale(root, from_=6, to=18, orient='horizontal', label="小七度 = 10 (默认)")
     melody_slider.set(10)
     melody_slider.pack(padx=10, pady=5)
 
