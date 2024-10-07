@@ -36,7 +36,7 @@ def open_file_dialog():
     return file_path
 
 def tolerance_selection():
-    """Create a window for selecting melody and chord tolerances using sliders."""
+    """Create a window for selecting melody, chord, and melody degree tolerances using sliders."""
     root = tk.Tk()
     root.title("选择容许阈值")
 
@@ -50,6 +50,11 @@ def tolerance_selection():
     chord_slider.set(9)
     chord_slider.pack(padx=10, pady=5)
 
+    tk.Label(root, text="旋律音级容许阈值 (melody degree tolerance)").pack(padx=10, pady=5)
+    melody_degree_slider = tk.Scale(root, from_=60, to=80, orient='horizontal', label="默认值 B4 = 71")
+    melody_degree_slider.set(71)
+    melody_degree_slider.pack(padx=10, pady=5)
+
     def on_submit():
         root.quit()
 
@@ -58,13 +63,13 @@ def tolerance_selection():
     root.mainloop()
 
     # 返回用户选择的容许阈值
-    return melody_slider.get(), chord_slider.get()
+    return melody_slider.get(), chord_slider.get(), melody_degree_slider.get()
 
-def extract_melody_with_musicpy(midi_file, melody_tol, chord_tol):
+def extract_melody_with_musicpy(midi_file, melody_tol, chord_tol, melody_degree_tol):
     piece, bpm, start_time = mp.read(midi_file).merge()
 
     # Use the user-specified tolerances or default ones
-    melody_chord = piece.split_melody(mode='chord', melody_tol=melody_tol, chord_tol=chord_tol)
+    melody_chord = piece.split_melody(mode='chord', melody_tol=melody_tol, chord_tol=chord_tol, melody_degree_tol=melody_degree_tol)
 
     temp_midi_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mid')
     mp.write(melody_chord, bpm, name=temp_midi_file.name)
@@ -269,9 +274,9 @@ def main():
         return
 
     try:
-        melody_tol, chord_tol = tolerance_selection()  # Get user-selected tolerances
+        melody_tol, chord_tol, melody_degree_tol = tolerance_selection()  # Get user-selected tolerances
 
-        temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol)
+        temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol, melody_degree_tol)
     except Exception as e:
         messagebox.showerror("错误", f"无法提取主旋律: {e}")
         return
@@ -304,9 +309,9 @@ def main():
         return
 
     try:
-        melody_tol, chord_tol = tolerance_selection()  # Get user-selected tolerances
+        melody_tol, chord_tol, melody_degree_tol = tolerance_selection()  # Get user-selected tolerances
 
-        temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol)
+        temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol, melody_degree_tol)
     except Exception as e:
         messagebox.showerror("错误", f"无法提取主旋律: {e}")
         return
@@ -328,7 +333,6 @@ def main():
         process_selected_parts(score, selected_parts, output_txt_file, melody_tol, chord_tol)
     else:
         messagebox.showinfo("提示", "未选择任何保存路径。")
-
 
 if __name__ == "__main__":
     main()
