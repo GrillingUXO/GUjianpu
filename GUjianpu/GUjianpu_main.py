@@ -3,21 +3,19 @@ import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from music21 import converter, chord, note, stream
-import zipfile
 import tempfile
-import shutil
 from dotenv import load_dotenv
-import musicpy as mp 
+import musicpy as mp
 
 load_dotenv()
 
-# Mapping from standard musical notes to Jianpu numbers
+# 标准音符到简谱数字的映射
 JIANPU_PITCH_MAP = {
     'C': '1', 'D': '2', 'E': '3', 'F': '4',
     'G': '5', 'A': '6', 'B': '7'
 }
 
-# Accidentals mapping
+# 升降号映射
 ACCIDENTALS = {
     1: '♯', 
     -1: '♭', 
@@ -29,14 +27,14 @@ def open_file_dialog():
     file_path = filedialog.askopenfilename(
         title="选择要处理的 MIDI 文件",
         filetypes=[
-            ("MIDI Files", "*.mid *.MID"),
-            ("All Files", "*.*")
+            ("MIDI 文件", "*.mid *.MID"),
+            ("所有文件", "*.*")
         ]
     )
     return file_path
 
 def tolerance_selection():
-    """Create a window for selecting melody, chord, and melody degree tolerances using sliders."""
+    """创建一个窗口，用于通过滑块选择旋律、和弦及旋律音级的容许阈值。"""
     root = tk.Tk()
     root.title("选择容许阈值")
 
@@ -62,23 +60,35 @@ def tolerance_selection():
 
     root.mainloop()
 
-    # 返回用户选择的容许阈值
     return melody_slider.get(), chord_slider.get(), melody_degree_slider.get()
 
 def extract_melody_with_musicpy(midi_file, melody_tol, chord_tol, melody_degree_tol):
-    piece, bpm, start_time = mp.read(midi_file).merge()
+    try:
+        # 使用 musicpy 读取并合并 MIDI 文件
+        piece, bpm, start_time = mp.read(midi_file).merge()
 
-    # Use the user-specified tolerances or default ones
-    melody_chord = piece.split_melody(mode='chord', melody_tol=melody_tol, chord_tol=chord_tol, melody_degree_tol=melody_degree_tol)
+        # 使用 melody_tol, chord_tol, 和 melody_degree_tol 进行旋律分离
+        melody_chord = piece.split_melody(
+            mode='chord',
+            melody_tol=melody_tol,
+            chord_tol=chord_tol,
+            melody_degree_tol='B4'  # 固定为字符串 'B4'
+        )
+        if not isinstance(melody_chord, mp.chord):
+            raise ValueError(f"split_melody 返回了意外的结果: {type(melody_chord)}")
 
-    temp_midi_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mid')
-    mp.write(melody_chord, bpm, name=temp_midi_file.name)
-    return temp_midi_file.name
+        # 写入临时的 MIDI 文件
+        temp_midi_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mid')
+        mp.write(melody_chord, bpm, name=temp_midi_file.name)
+        return temp_midi_file.name
+
+    except Exception as e:
+        raise ValueError(f"旋律解析错误: {str(e)}")
 
 def select_parts(score):
     parts = score.parts
     part_ids = [part.id for part in parts]
-    part_names = [part.partName if part.partName else f"Part {i+1}" for i, part in enumerate(parts)]
+    part_names = [part.partName if part.partName else f"声部 {i+1}" for i, part in enumerate(parts)]
 
     selected_parts = []
     selected_part_ids = []
@@ -110,14 +120,13 @@ def select_parts(score):
     return selected_parts, selected_part_ids
 
 def convert_note_to_jianpu(m21_note):
-    """Convert a music21 note or rest to Jianpu notation, handling duration, octave markers, and dotted notes."""
-
-    # Rests
+    """将 music21 的音符或休止符转换为简谱符号。"""
+    # 休止符
     if isinstance(m21_note, note.Rest):
         quarter_length = m21_note.duration.quarterLength
         dots = m21_note.duration.dots
 
-        # Mapping rest duration
+        # 映射休止符时值
         if quarter_length == 4.0:
             rest_notation = '0000'
         elif quarter_length == 2.0:
@@ -133,9 +142,9 @@ def convert_note_to_jianpu(m21_note):
         elif quarter_length == 0.0625:
             rest_notation = '0̺'
         else:
-            rest_notation = '0'  # Fallback for any undefined rests
+            rest_notation = '0'  # 默认休止符
 
-        # Dotted rests
+        # 附点休止符
         if dots == 1:
             rest_notation += '·'
         elif dots == 2:
@@ -146,29 +155,29 @@ def convert_note_to_jianpu(m21_note):
     step = m21_note.pitch.step
     octave = m21_note.pitch.octave
     alter = m21_note.pitch.accidental.alter if m21_note.pitch.accidental else 0
-    quarter_length = m21_note.duration.quarterLength  # Use quarterLength for precision
-    dots = m21_note.duration.dots  # Get the number of dots
+    quarter_length = m21_note.duration.quarterLength
+    dots = m21_note.duration.dots
 
     if alter == 1:
         step += '♯'
     elif alter == -1:
         step += '♭'
 
-    # Convert step to Jianpu number
-    base_step = step[0]  # 'C' from 'C♯' or 'C♭'
+    # 将音名转换为简谱数字
+    base_step = step[0]  # 从 'C♯' 或 'C♭' 中提取 'C'
     jianpu_number = JIANPU_PITCH_MAP.get(base_step, '')
 
-    # Add accidental
+    # 添加升降号
     if len(step) > 1:
         jianpu_number = ACCIDENTALS.get(alter, '') + jianpu_number
 
-    # Add octave marking
+    # 添加八度标记
     if octave < 4:
         jianpu_number = jianpu_number + '̣' * (4 - octave)
     elif octave > 4:
         jianpu_number = jianpu_number + '̇' * (octave - 4)
 
-    # Adjust duration
+    # 调整时值
     if quarter_length == 0.5:
         jianpu_number += '̱'
     elif quarter_length == 0.25:
@@ -184,7 +193,7 @@ def convert_note_to_jianpu(m21_note):
     elif quarter_length == 1.0:
         jianpu_number += ''
 
-    # Dotted note
+    # 附点音符
     if dots == 1:
         jianpu_number += '·'
     elif dots == 2:
@@ -194,9 +203,8 @@ def convert_note_to_jianpu(m21_note):
 
 def get_chord_root_or_bass(chrd):
     """
-    Extracts the root of a chord using music21's chord analysis features.
-    If it is a known chord, the root is derived from chord type (major, minor, etc.).
-    Otherwise, returns the lowest note in the chord (bass).
+    使用 music21 的和弦分析功能提取和弦的根音。
+    如果是已知和弦，则根据和弦类型提取根音。否则，返回和弦的最低音（即低音）。
     """
     if isinstance(chrd, chord.Chord):
         try:
@@ -208,23 +216,22 @@ def get_chord_root_or_bass(chrd):
         bass_note = chrd.bass()
         return note.Note(bass_note)
     else:
-        raise ValueError("The input must be a music21 chord object.")
+        raise ValueError("输入必须是 music21 和弦对象。")
 
 def convert_chord_to_jianpu(m21_chord):
-    """Convert a music21 chord to Jianpu notation by taking its root or bass note."""
     root_note = get_chord_root_or_bass(m21_chord) 
     return convert_note_to_jianpu(root_note) 
 
 def process_selected_parts(score, selected_parts, output_txt_file, melody_tol, chord_tol, output_melody_midi_file):
-    """Convert the selected parts to Jianpu notation, save as a text file, and export the melody to MIDI."""
+    """将选中的声部转换为简谱符号。"""
     try:
         melody_stream = stream.Part()  # 用于保存主旋律的音符
         with open(output_txt_file, 'w', encoding='utf-8') as jianpu_file:
             jianpu_file.write("简谱转换结果:\n")
 
-            # Iterate through selected parts
+            # 遍历所选的声部
             for part in selected_parts:
-                part_name = part.partName if part.partName else f"Part {part.id}"
+                part_name = part.partName if part.partName else f"声部 {part.id}"
                 jianpu_file.write(f"\n声部: {part_name}\n")
                 measures = part.getElementsByClass(stream.Measure)
                 measure_jianpu = []
@@ -247,18 +254,18 @@ def process_selected_parts(score, selected_parts, output_txt_file, melody_tol, c
                         measure_content.append(jianpu_notation)
                         melody_stream.append(melody_note) 
 
-                    # Combine the Jianpu of this measure, separating notes with spaces
+                    # 组合该小节的简谱符号，音符之间用空格分隔
                     measure_str = ' '.join(measure_content)
                     measure_jianpu.append(f"|  {measure_str}  |")
                     if i % 4 == 0:
                         jianpu_file.write('    '.join(measure_jianpu) + '\n\n\n')
-                        measure_jianpu = []  # Reset for the next set of 4 measures
+                        measure_jianpu = []  # 四小节重置
 
-                # Write any remaining measures with four spaces between measures
+                # 写入剩余的小节，并在小节之间用四个空格分隔
                 if measure_jianpu:
                     jianpu_file.write('    '.join(measure_jianpu) + '\n\n\n')
 
-        # 保存主旋律为MIDI文件
+        # 保存主旋律为 MIDI 文件
         melody_stream.write('midi', fp=output_melody_midi_file)
 
         messagebox.showinfo("成功", f"简谱已保存为 {output_txt_file}，主旋律MIDI已保存为 {output_melody_midi_file}")
@@ -274,7 +281,7 @@ def main():
         return
 
     try:
-        melody_tol, chord_tol, melody_degree_tol = tolerance_selection()  # Get user-selected tolerances
+        melody_tol, chord_tol, melody_degree_tol = tolerance_selection()  # 获取用户选择的容许阈值
 
         temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol, melody_degree_tol)
     except Exception as e:
@@ -290,47 +297,11 @@ def main():
     if not selected_parts:
         return
 
-    output_txt_file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
-    output_melody_midi_file = filedialog.asksaveasfilename(defaultextension=".mid", filetypes=[("MIDI files", "*.mid")])
+    output_txt_file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("文本文件", "*.txt")])
+    output_melody_midi_file = filedialog.asksaveasfilename(defaultextension=".mid", filetypes=[("MIDI 文件", "*.mid")])
 
     if output_txt_file and output_melody_midi_file:
         process_selected_parts(score, selected_parts, output_txt_file, melody_tol, chord_tol, output_melody_midi_file)
-    else:
-        messagebox.showinfo("提示", "未选择任何保存路径。")
-
-
-if __name__ == "__main__":
-    main()
-
-def main():
-    input_midi = open_file_dialog()
-    if not input_midi:
-        messagebox.showinfo("提示", "未选择任何文件。")
-        return
-
-    try:
-        melody_tol, chord_tol, melody_degree_tol = tolerance_selection()  # Get user-selected tolerances
-
-        temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol, melody_degree_tol)
-    except Exception as e:
-        messagebox.showerror("错误", f"无法提取主旋律: {e}")
-        return
-
-    try:
-        score = converter.parse(temp_midi)
-    except Exception as e:
-        messagebox.showerror("错误", f"无法解析临时 MIDI 文件: {e}")
-        return
-
-    # Select parts to convert
-    selected_parts, selected_part_ids = select_parts(score)
-    if not selected_parts:
-        return
-
-    output_txt_file = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
-
-    if output_txt_file:
-        process_selected_parts(score, selected_parts, output_txt_file, melody_tol, chord_tol)
     else:
         messagebox.showinfo("提示", "未选择任何保存路径。")
 
