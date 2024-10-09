@@ -34,17 +34,17 @@ def open_file_dialog():
     return file_path
 
 def tolerance_selection():
-    """创建一个窗口，用于通过滑块选择旋律、和弦及旋律音级的容许阈值。"""
+    """创建一个窗口，用于通过滑块选择旋律、和弦及旋律音级的容许阈值，选择 get_off_same_time 和 average_degree_length。"""
     root = tk.Tk()
     root.title("选择容许阈值")
 
     tk.Label(root, text="旋律归类容许阈值 (melody tolerance)").pack(padx=10, pady=5)
-    melody_slider = tk.Scale(root, from_=6, to=18, orient='horizontal', label="小七度 = 10 (默认)")
+    melody_slider = tk.Scale(root, from_=6, to=18, orient='horizontal', label="小七度 = 10")
     melody_slider.set(10)
     melody_slider.pack(padx=10, pady=5)
 
     tk.Label(root, text="和弦归类容许阈值 (chord tolerance)").pack(padx=10, pady=5)
-    chord_slider = tk.Scale(root, from_=1, to=12, orient='horizontal', label="大六度 = 9 (默认)")
+    chord_slider = tk.Scale(root, from_=1, to=12, orient='horizontal', label="大六度 = 9")
     chord_slider.set(9)
     chord_slider.pack(padx=10, pady=5)
 
@@ -53,6 +53,17 @@ def tolerance_selection():
     melody_degree_slider.set(71)
     melody_degree_slider.pack(padx=10, pady=5)
 
+    # 添加 get_off_same_time 选项
+    get_off_same_time_var = tk.BooleanVar(value=True)  # 默认值为 True
+    get_off_same_time_checkbox = tk.Checkbutton(root, text="仅保留最高音 (get_off_same_time)", variable=get_off_same_time_var)
+    get_off_same_time_checkbox.pack(padx=10, pady=5)
+
+    # 添加 average_degree_length 选项
+    tk.Label(root, text="平均音高计算的小节数 (average_degree_length)").pack(padx=10, pady=5)
+    average_degree_length_slider = tk.Scale(root, from_=1, to=100, orient='horizontal', label="默认值 = 8")
+    average_degree_length_slider.set(8)
+    average_degree_length_slider.pack(padx=10, pady=5)
+
     def on_submit():
         root.quit()
 
@@ -60,19 +71,27 @@ def tolerance_selection():
 
     root.mainloop()
 
-    return melody_slider.get(), chord_slider.get(), melody_degree_slider.get()
+    return (
+        melody_slider.get(),
+        chord_slider.get(),
+        melody_degree_slider.get(),
+        get_off_same_time_var.get(),
+        average_degree_length_slider.get()
+    )
 
-def extract_melody_with_musicpy(midi_file, melody_tol, chord_tol, melody_degree_tol):
+def extract_melody_with_musicpy(midi_file, melody_tol, chord_tol, melody_degree_tol, get_off_same_time, average_degree_length):
     try:
         # 使用 musicpy 读取并合并 MIDI 文件
         piece, bpm, start_time = mp.read(midi_file).merge()
 
-        # 使用 melody_tol, chord_tol, 和 melody_degree_tol 进行旋律分离
+        # 使用 melody_tol, chord_tol, melody_degree_tol, get_off_same_time 和 average_degree_length 进行旋律分离
         melody_chord = piece.split_melody(
             mode='chord',
             melody_tol=melody_tol,
             chord_tol=chord_tol,
-            melody_degree_tol='B4'  # 固定为字符串 'B4'
+            melody_degree_tol='B4',  # 固定为字符串 'B4'
+            get_off_same_time=get_off_same_time,
+            average_degree_length=average_degree_length
         )
         if not isinstance(melody_chord, mp.chord):
             raise ValueError(f"split_melody 返回了意外的结果: {type(melody_chord)}")
@@ -281,9 +300,17 @@ def main():
         return
 
     try:
-        melody_tol, chord_tol, melody_degree_tol = tolerance_selection()  # 获取用户选择的容许阈值
+        # 获取用户选择的容许阈值和其他参数
+        melody_tol, chord_tol, melody_degree_tol, get_off_same_time, average_degree_length = tolerance_selection()
 
-        temp_midi = extract_melody_with_musicpy(input_midi, melody_tol, chord_tol, melody_degree_tol)
+        temp_midi = extract_melody_with_musicpy(
+            input_midi,
+            melody_tol,
+            chord_tol,
+            melody_degree_tol,
+            get_off_same_time, 
+            average_degree_length
+        )
     except Exception as e:
         messagebox.showerror("错误", f"无法提取主旋律: {e}")
         return
@@ -293,6 +320,7 @@ def main():
     except Exception as e:
         messagebox.showerror("错误", f"无法解析临时 MIDI 文件: {e}")
         return
+
     selected_parts, selected_part_ids = select_parts(score)
     if not selected_parts:
         return
