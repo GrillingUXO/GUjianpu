@@ -257,9 +257,9 @@ def process_selected_parts(score, selected_parts, output_txt_file, melody_tol, c
                     # 组合该小节的简谱符号，音符之间用空格分隔
                     measure_str = ' '.join(measure_content)
                     measure_jianpu.append(f"|  {measure_str}  |")
-                    if i % 4 == 0:
+                    if i % 2 == 0:
                         jianpu_file.write('    '.join(measure_jianpu) + '\n\n\n')
-                        measure_jianpu = []  # 四小节重置
+                        measure_jianpu = []  # 两小节重置
 
                 # 写入剩余的小节，并在小节之间用四个空格分隔
                 if measure_jianpu:
