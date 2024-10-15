@@ -1,5 +1,6 @@
 * 新增打包好的.exe 和 .app程序包
-* .app没有经过公证，请在终端中输入
+
+.app没有经过公证，请在终端中输入
  ```bash
 xattr -rd com.apple.quarantine /文件路径/
 ```
