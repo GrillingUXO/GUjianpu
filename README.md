@@ -8,6 +8,8 @@ xattr -rd com.apple.quarantine /文件路径/
 
 * 新增midi导出，自定义旋律容许阈值&音程容差，以及更适合处理总谱/简单旋律的根音分离脚本。
 
+  
+
 基于music21库和musicpy库的五线谱-简谱转换脚本。这个粗糙的小工具可以将多声部乐谱转换成单声部的乐谱，同时较完整地保留主旋律。
 
 十分感谢 @Rainbow-Dreamer 的musicpy工具包 😍
