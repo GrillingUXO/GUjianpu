@@ -1,7 +1,8 @@
 * 新增打包好的.exe 和 .app程序包
 * .app没有经过公证，请在终端中输入
  ```bash
-xattr -rd com.apple.quarantine /文件路径/ ‘’‘
+xattr -rd com.apple.quarantine /文件路径/
+‘’‘
 来临时绕过Gatekeeper
 
 * 新增midi导出，自定义旋律容许阈值&音程容差，以及更适合处理总谱/简单旋律的根音分离脚本。
